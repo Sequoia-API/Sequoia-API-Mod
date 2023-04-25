@@ -16,7 +16,7 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"api.sequoia.ExampleMod"
+          "api.sequoia.SequoiaApi"
 		]
 	},
 	"mixins": [

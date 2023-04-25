@@ -1,9 +1,9 @@
 {
 	"required": true,
-	"package": "api.sequoia.mixin",
+	"package": "api.sequoia.Messages",
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
-		"ExampleMixin"
+      "MessageHandler"
 	],
 	"injectors": {
 		"defaultRequire": 1
