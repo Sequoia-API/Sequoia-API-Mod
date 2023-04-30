@@ -6,7 +6,6 @@ import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.command.CommandRegistryAccess;
-
 import static api.sequoia.utils.ChatAndLogs.chat;
 
 public class Command {
@@ -15,10 +14,10 @@ public class Command {
         fabricClientCommandSourceCommandDispatcher.register(ClientCommandManager.literal("seq")
                 .then(ClientCommandManager.literal("help").executes(Command::help))
                 .then(ClientCommandManager.literal("stats").executes(Command::stats))
-                .then(ClientCommandManager.literal("toggle").executes(Command::toggle))
+                .then(ClientCommandManager.literal("toggle").executes(Command::toggle)
                 .then(ClientCommandManager.literal("notify").executes(Command::seqNotify))
-                .then(ClientCommandManager.literal("debug").executes(Command::debug))
-                .then(ClientCommandManager.literal("warlog").executes(Command::logWars)));
+                 .then(ClientCommandManager.literal("title").executes(Command::title))
+                .then(ClientCommandManager.literal("warlog").executes(Command::logWars))));
     }
 
 
@@ -33,6 +32,14 @@ public class Command {
 
     private static int stats(CommandContext<FabricClientCommandSource> context) {
             chat(context,"Stat Command");
+        return 1;
+    }
+
+    private static int title(CommandContext<FabricClientCommandSource> context) {
+        if(Options.funnyTitleMessages) chat(context, "§7You will no longer receive funny title messages");
+        else chat(context, "§7You will now see funny title messages again");
+        Options.funnyTitleMessages = !Options.funnyTitleMessages;
+
         return 1;
     }
 

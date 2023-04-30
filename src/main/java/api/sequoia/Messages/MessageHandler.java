@@ -18,14 +18,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Arrays;
-
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
+
+import static api.sequoia.enums.funnyTitleMessages.randomMessage;
 
 @Mixin(ChatHud.class)
 
@@ -33,7 +29,7 @@ public abstract class MessageHandler {
 	@Shadow protected abstract void logChatMessage(Text message, @Nullable MessageIndicator indicator);
 
 	@Inject(method = "addMessage(Lnet/minecraft/text/Text;)V",
-			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V"));
+			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V"))
 
 	private void onMessage(Text message, CallbackInfo ci) {
 
@@ -63,6 +59,12 @@ public abstract class MessageHandler {
 		String urlToRead = "http://"+ Options.apiServer+":"+Options.apiPort+"/war/?uuid="+uuid+"&key="+encodedJson;
 
 		if(Options.logWars) mc.player.sendMessage(Text.of("§7- [SEQ-API] War has been recorded"));
+		mc.inGameHud.clearTitle();
+		mc.inGameHud.setTitleTicks(10, 3000, 100);
+		mc.inGameHud.setTitle(Text.of("§aVictory!"));
+
+		if (Options.funnyTitleMessages)	mc.inGameHud.setSubtitle(Text.of(randomMessage()));
+
 		CompletableFuture.runAsync(() -> {
 			HttpClient client = HttpClient.newHttpClient();
 			HttpRequest request = HttpRequest.newBuilder().uri(URI.create(urlToRead)).build();
