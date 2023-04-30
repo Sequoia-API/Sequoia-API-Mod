@@ -33,7 +33,7 @@ public abstract class MessageHandler {
 	@Shadow protected abstract void logChatMessage(Text message, @Nullable MessageIndicator indicator);
 
 	@Inject(method = "addMessage(Lnet/minecraft/text/Text;)V",
-			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V"));
+			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V"))
 
 	private void onMessage(Text message, CallbackInfo ci) {
 
