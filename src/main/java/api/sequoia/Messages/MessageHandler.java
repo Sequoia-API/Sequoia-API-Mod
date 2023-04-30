@@ -4,7 +4,10 @@ import api.sequoia.misc.Options;
 import api.sequoia.utils.ChatAndLogs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.hud.MessageIndicator;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -12,21 +15,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.text.Text;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChatHud.class)
 
-public class MessageHandler {
+public abstract class MessageHandler {
+	@Shadow protected abstract void logChatMessage(Text message, @Nullable MessageIndicator indicator);
+
 	@Inject(method = "addMessage(Lnet/minecraft/text/Text;)V",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V")
 	)
-	private void onMessage(Text message, CallbackInfo ci) throws IOException {
+	private void onMessage(Text message, CallbackInfo ci) {
 
 		// Do nothing if disabled
 		if(!Options.logWars) return;
@@ -42,35 +46,44 @@ public class MessageHandler {
 		 *         }
 		 */
 		String content = message.getString().replaceAll("§.", "");
-
 		if(!content.startsWith("- Captured \"") || !content.endsWith("\"") ) return;
 		MinecraftClient mc = MinecraftClient.getInstance();
 		if(mc.player == null) return;
-		if(Objects.requireNonNull(mc.player.getServer()).getOpPermissionLevel() > 0) return; //Prevents the mod from doing anything if the player is op
 
-		String uuid = mc.player.getUuidAsString();
-		long time = System.currentTimeMillis();
-		String terr =  content.replace("- Captured \"", "").replace("\"","");
-		String json = "{\"timestamp\":"+time+",\"Name\":\""+terr+"\",\"uuid\":\""+uuid+"\"}";
-		String encodedJson = Base64.getEncoder().encodeToString((json).getBytes());
-		String urlToRead = "http://"+ Options.apiServer+":"+Options.apiPort+"/war/?uuid="+uuid+"&key="+encodedJson;
+		CompletableFuture.runAsync(() -> { // This simple solution was created with help from Bawnorton#0001 (Discord)
+			try {
+				String uuid = mc.player.getUuidAsString();
+				long time = System.currentTimeMillis();
+				String terr =  content.replace("- Captured \"", "").replace("\"","");
+				String json = "{\"timestamp\":"+time+",\"Name\":\""+terr+"\",\"uuid\":\""+uuid+"\"}";
+				String encodedJson = Base64.getEncoder().encodeToString((json).getBytes());
+				String urlToRead = "http://"+ Options.apiServer+":"+Options.apiPort+"/war/?uuid="+uuid+"&key="+encodedJson;
 
-		StringBuilder connResult = new StringBuilder();
-		URL url = new URL(urlToRead);
+				StringBuilder connResult = new StringBuilder();
 
-		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setRequestMethod("GET");
+				URL url = new URL(urlToRead);
+				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestMethod("GET");
 
-		if(Options.logWars) mc.player.sendMessage(Text.of("§a [SEQ-API] War has been recorded"));
+				conn.connect();
+				try (BufferedReader reader = new BufferedReader(
 
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(conn.getInputStream()))) {
-			for (String line; (line = reader.readLine()) != null; ) {
-				connResult.append(line);
-				ChatAndLogs.debug("New connection result received: " + connResult);
+						new InputStreamReader(conn.getInputStream()))) {
+					for (String line; (line = reader.readLine()) != null; ) {
+						connResult.append(line);
+						ChatAndLogs.debug("New connection result received: " + connResult);
+						if(Options.logWars) mc.player.sendMessage(Text.of("§7- [SEQ-API] War has been recorded"));
+					}
+				} catch (Exception e) {
+					ChatAndLogs.error("An error occurred when receiving the response from the API.\n" + Arrays.toString(e.getStackTrace()));
+				}
+				conn.disconnect();
+			} catch (Exception e) {
+				e.getStackTrace();
 			}
-		} catch (Exception e) {
-			ChatAndLogs.error("An error occurred when receiving the response from the API.\n" + Arrays.toString(e.getStackTrace()));
-		}
+
+		});
+
+
 	}
 }
