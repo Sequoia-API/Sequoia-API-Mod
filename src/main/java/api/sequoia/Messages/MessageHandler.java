@@ -14,11 +14,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.text.Text;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
+
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
@@ -29,8 +34,9 @@ public abstract class MessageHandler {
 
 	@Inject(method = "addMessage(Lnet/minecraft/text/Text;)V",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/ChatHud;addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V")
-	)
+}
 	private void onMessage(Text message, CallbackInfo ci) {
+
 
 		// Do nothing if disabled
 		if(!Options.logWars) return;
@@ -49,41 +55,18 @@ public abstract class MessageHandler {
 		if(!content.startsWith("- Captured \"") || !content.endsWith("\"") ) return;
 		MinecraftClient mc = MinecraftClient.getInstance();
 		if(mc.player == null) return;
+		String uuid = mc.player.getUuidAsString();
+		long time = System.currentTimeMillis();
+		String terr =  content.replace("- Captured \"", "").replace("\"","");
+		String json = "{\"timestamp\":"+time+",\"Name\":\""+terr+"\",\"uuid\":\""+uuid+"\"}";
+		String encodedJson = Base64.getEncoder().encodeToString((json).getBytes());
+		String urlToRead = "http://"+ Options.apiServer+":"+Options.apiPort+"/war/?uuid="+uuid+"&key="+encodedJson;
 
-		CompletableFuture.runAsync(() -> { // This simple solution was created with help from Bawnorton#0001 (Discord)
-			try {
-				String uuid = mc.player.getUuidAsString();
-				long time = System.currentTimeMillis();
-				String terr =  content.replace("- Captured \"", "").replace("\"","");
-				String json = "{\"timestamp\":"+time+",\"Name\":\""+terr+"\",\"uuid\":\""+uuid+"\"}";
-				String encodedJson = Base64.getEncoder().encodeToString((json).getBytes());
-				String urlToRead = "http://"+ Options.apiServer+":"+Options.apiPort+"/war/?uuid="+uuid+"&key="+encodedJson;
-
-				StringBuilder connResult = new StringBuilder();
-
-				URL url = new URL(urlToRead);
-				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-				conn.setRequestMethod("GET");
-
-				conn.connect();
-				try (BufferedReader reader = new BufferedReader(
-
-						new InputStreamReader(conn.getInputStream()))) {
-					for (String line; (line = reader.readLine()) != null; ) {
-						connResult.append(line);
-						ChatAndLogs.debug("New connection result received: " + connResult);
-						if(Options.logWars) mc.player.sendMessage(Text.of("§7- [SEQ-API] War has been recorded"));
-					}
-				} catch (Exception e) {
-					ChatAndLogs.error("An error occurred when receiving the response from the API.\n" + Arrays.toString(e.getStackTrace()));
-				}
-				conn.disconnect();
-			} catch (Exception e) {
-				e.getStackTrace();
-			}
-
+		if(Options.logWars) mc.player.sendMessage(Text.of("§7- [SEQ-API] War has been recorded"));
+		CompletableFuture.runAsync(() -> {
+			HttpClient client = HttpClient.newHttpClient();
+			HttpRequest request = HttpRequest.newBuilder().uri(URI.create(urlToRead)).build();
+			String connResult = client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(HttpResponse::body).join();
+			ChatAndLogs.debug("New connection result received: " + connResult);
 		});
-
-
-	}
 }

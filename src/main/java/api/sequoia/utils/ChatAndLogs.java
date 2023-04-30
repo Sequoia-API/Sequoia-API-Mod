@@ -2,6 +2,7 @@ package api.sequoia.utils;
 
 import api.sequoia.misc.Options;
 import com.mojang.brigadier.context.CommandContext;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
@@ -25,7 +26,7 @@ public class ChatAndLogs {
 
     public void locDebug(String str) { if(Options.debugMode) System.out.println("[SEQ-API] [DEBUG] " + str); }
 
-    public void locChat(CommandContext<ServerCommandSource> context, String str, boolean prefix) {
+    public void locChat(CommandContext<FabricClientCommandSource> context, String str, boolean prefix) {
         if(prefix) Objects.requireNonNull(context.getSource().getPlayer()).sendMessage(Text.of("§7[SEQ-API] "+str));
         else Objects.requireNonNull(context.getSource().getPlayer()).sendMessage(Text.of(str));
     }
@@ -45,7 +46,7 @@ public class ChatAndLogs {
 
     public static void debug(String str) { instance.locDebug(str); }
 
-    public static void chat(CommandContext<ServerCommandSource> context, String str, boolean prefix) {instance.locChat(context, str, prefix);}
-    public static void chat(CommandContext<ServerCommandSource> context, String str) {instance.locChat(context, str, true);}
+    public static void chat(CommandContext<FabricClientCommandSource> context, String str, boolean prefix) {instance.locChat(context, str, prefix);}
+    public static void chat(CommandContext<FabricClientCommandSource> context, String str) {instance.locChat(context, str, true);}
 
 }
